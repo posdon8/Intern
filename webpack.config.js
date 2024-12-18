@@ -1,6 +1,3 @@
-const { model } = require('mongoose');
-
-
 
 const path = require('path');
 

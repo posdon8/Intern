@@ -6,21 +6,34 @@ require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const session = require('express-session');
-
+const sequelize = require('./config/database');
+const { authenticateJWT } = require('./middleware');
+const registerRoute = require('./routes/auth'); 
+const corsOptions = {
+  origin: 'http://localhost:3000',  // Allow only this origin
+  credentials: true,  // Allow credentials (cookies, headers, etc.)
+};
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 5001;
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your_session_secret', // Sử dụng một secret cho session
   resave: false,
   saveUninitialized: true,
   cookie: { secure: false, httpOnly: true } // Thiết lập secure=true khi triển khai trên HTTPS
 }));
-app.use(cors({
-  origin: 'http://localhost:3000', // Chỉ cho phép yêu cầu từ localhost:3000
-  methods: ['GET', 'POST'], // Chỉ định các phương thức HTTP được phép
-  credentials: true, // Cho phép gửi cookies/credentials
-}));
+app.use(express.json());
+app.use('/api', registerRoute);
+sequelize.sync()
+  .then(() => {
+    console.log('Kết nối cơ sở dữ liệu thành công!');
+    const PORT = 5001;
+    app.listen(PORT, () => console.log(`Server đang chạy trên cổng ${PORT}`));
+  })
+  .catch((error) => {
+    console.error('Không thể kết nối cơ sở dữ liệu:', error);
+  });
+app.use(cors(corsOptions));
 // MySQL connectioan
 const connection = mysql.createConnection({
   host: '127.0.0.1',
@@ -29,7 +42,9 @@ const connection = mysql.createConnection({
   database: 'poseidont',
   port: 3306
 });
-
+app.get('/protected', authenticateJWT, (req, res) => {
+  res.send('This is a protected route');
+});
 connection.connect(err => {
   if (err) {
     console.error('Lỗi kết nối MySQL:', err.message);
@@ -39,7 +54,7 @@ connection.connect(err => {
 });
 
 // Middleware
-app.use(cors());
+
 app.use(bodyParser.json());
 async function generateHashedPassword() {
   const hashedPassword = await bcrypt.hash('your_password', 10);
@@ -68,10 +83,9 @@ app.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    const [results] = await connection.promise().query('SELECT * FROM Users WHERE username = ?', [username]);
-    
+    const results = await queryAsync('SELECT * FROM Users WHERE username = ?', [username]);
+
     if (results.length === 0) {
-      console.log('No user found for username:', username);
       return res.status(401).send('Sai tên đăng nhập');
     }
 
@@ -82,14 +96,14 @@ app.post('/login', async (req, res) => {
       return res.status(401).send('Sai mật khẩu');
     }
 
-    // Nếu mật khẩu đúng, tạo session cho người dùng
-    req.session.user = { id: user.id, username: user.username, role: user.role };
-    res.status(200).send({ success: true, message: 'Đăng nhập thành công', role: user.role });
-    res.status(200).send({ 
-      success: true, 
-      message: 'Login successful', 
-      role: user.role, 
-      token: req.sessionID});
+    // Tạo token JWT
+    const token = jwt.sign(
+      { id: user.id, username: user.username, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+    res.cookie('token', token, { httpOnly: true, secure: true });
+    res.status(200).send({ success: true, message: 'Login successful', token });
   } catch (err) {
     console.error('Lỗi khi đăng nhập:', err.message);
     return res.status(500).send('Lỗi server');
@@ -124,23 +138,7 @@ app.get('/data', (req, res) => {
   });
 });
 
-const authenticateAdmin = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1];  // Token should be in the format 'Bearer <token>'
-  
-  if (!token) return res.status(403).send('Token không hợp lệ');
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.isAdmin) {
-      req.user = decoded;
-      next();
-    } else {
-      res.status(403).send('Không đủ quyền');
-    }
-  } catch (err) {
-    res.status(403).send('Token không hợp lệ');
-  }
-};
 app.get('/test-session', (req, res) => {
   res.send(req.session.user || 'No session found');
 });
@@ -189,10 +187,6 @@ app.get('/product/:id', (req, res) => {
   });
 });
 
-// Server listen
-app.listen(port, () => {
-  console.log(`Server đang chạy trên cổng ${port}`);
-});
 
 // Close MySQL connection gracefully
 process.on('SIGINT', () => {
