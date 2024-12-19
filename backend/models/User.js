@@ -2,7 +2,7 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database.js');
 const bcrypt = require('bcryptjs');
 
-// Định nghĩa model người dùng
+
 const User = sequelize.define('User', {
   id: {
     type: DataTypes.INTEGER,
@@ -12,7 +12,7 @@ const User = sequelize.define('User', {
   username: {
     type: DataTypes.STRING(255),
     allowNull: false,
-    unique: true, // Username phải duy nhất
+    unique: true,
   },
   password: {
     type: DataTypes.STRING(255),
@@ -20,23 +20,23 @@ const User = sequelize.define('User', {
   },
   role: {
     type: DataTypes.ENUM('admin', 'user'),
-    defaultValue: 'user', // Mặc định là user
+    defaultValue: 'user', 
     allowNull: false,
   },
   
 }, {
-  timestamps: false, // Vì bạn đã có trường `created_at`, không cần tự động tạo `createdAt` và `updatedAt`
-  tableName: 'Users', // Tên bảng trong cơ sở dữ liệu
+  timestamps: false, 
+  tableName: 'Users',
 });
 
-// Mã hóa mật khẩu trước khi lưu vào cơ sở dữ liệu
+
 User.beforeSave(async (user) => {
   if (user.changed('password')) {
     user.password = await bcrypt.hash(user.password, 10); // Mã hóa mật khẩu
   }
 });
 
-// Phương thức kiểm tra mật khẩu khi đăng nhập
+
 User.prototype.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };

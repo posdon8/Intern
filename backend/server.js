@@ -10,19 +10,23 @@ const sequelize = require('./config/database');
 const { authenticateJWT } = require('./middleware');
 const registerRoute = require('./routes/auth'); 
 const productRoutes = require('./routes/productRoutes');
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
 const corsOptions = {
   origin: 'http://localhost:3000',  // Allow only this origin
   credentials: true,  // Allow credentials (cookies, headers, etc.)
 };
 
+
 const app = express();
 const port = process.env.PORT || 5001;
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'tamvu100523', // Sử dụng một secret cho session
+  secret: process.env.SESSION_SECRET || 'tamvu100523',
   resave: false,
   saveUninitialized: true,
-  cookie: { secure: false, httpOnly: true } // Thiết lập secure=true khi triển khai trên HTTPS
+  cookie: { secure: false, httpOnly: true }
 }));
+
 app.use(express.json());
 app.use('/api', registerRoute);
 app.use('/api/products', productRoutes); 
@@ -35,7 +39,7 @@ sequelize.sync()
   .catch((error) => {
     console.error('Không thể kết nối cơ sở dữ liệu:', error);
   });
-app.use(cors(corsOptions));
+  app.use(cors(corsOptions));
 // MySQL connectioan
 const connection = mysql.createConnection({
   host: '127.0.0.1',
@@ -68,18 +72,12 @@ generateHashedPassword();
 const queryAsync = (query, params) => {
   return new Promise((resolve, reject) => {
     connection.query(query, params, (err, results) => {
-      if (err) reject(err);
-      else resolve(results);
+      if (err) return reject(err);
+      resolve(results);
     });
   });
 };
-const isAuthenticated = (req, res, next) => {
-  if (req.session.user) {
-    next();
-  } else {
-    res.status(401).send('Bạn cần phải đăng nhập');
-  }
-};
+
 // Login route
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
@@ -90,18 +88,19 @@ app.post('/login', async (req, res) => {
     if (results.length === 0) {
       return res.status(401).send('Sai tên đăng nhập');
     }
-
+      
     const user = results[0];
-    const match = password === user.password;
-    
-    if (!match) {
-      return res.status(401).send('Sai mật khẩu');
+    const passwordMatch = await bcrypt.compare(password, user.password); // So sánh mật khẩu
+    if (!passwordMatch) {
+      return res.status(401).json({ message: 'Sai mật khẩu' });
     }
+
+   
 
     // Tạo token JWT
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
-      "process.env.JWT_SECRET",
+      process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
     res.cookie('token', token, { httpOnly: true, secure: true });
@@ -112,16 +111,8 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Đăng xuất
-app.post('/logout', (req, res) => {
-  req.session.destroy(err => {
-    if (err) {
-      return res.status(500).send('Lỗi khi đăng xuất');
-    }
-    res.status(200).send('Đăng xuất thành công');
-  });
-});
-app.post('/add', (req, res) => {
+
+app.post('/products' , upload.single('image'), (req, res) => {
   // Xử lý thêm sản phẩm vào cơ sở dữ liệu
   const { name, price, img, category } = req.body;
   

@@ -1,4 +1,4 @@
-// models/Product.js
+
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
@@ -18,7 +18,7 @@ const Product = sequelize.define('Product', {
   },
   img: {
     type: DataTypes.STRING,
-    allowNull: true, // assuming image is optional
+    allowNull: true, 
   },
   category: {
     type: DataTypes.STRING,
@@ -26,7 +26,7 @@ const Product = sequelize.define('Product', {
   }
 }, {
   tableName: 'Products',
-  timestamps: false, // Disable automatic timestamp fields if not needed
+  timestamps: false, 
 });
 
 module.exports = Product;

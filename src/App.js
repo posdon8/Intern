@@ -16,8 +16,9 @@ function App() {
   const [isCartVisible, setIsCartVisible] = useState(false);
   const[isOrderVisible, setIsOrderVisible] = useState(false);
   const [user, setUser] = useState(null);
-
-  const [loginMessage, setLoginMessage] = useState('');
+  const [error, setError] = useState('');
+ 
+  const [isAddProductVisible, setIsAddProductVisible] = useState(false);
 
   const [shippingFee, setShippingFee] = useState(50000);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -26,17 +27,29 @@ function App() {
   const [isLoginVisible, setIsLoginVisible] = useState(false);
     useEffect(() => {
       // Kiểm tra cookie khi component được mount
-      const token = Cookies.get('token'); // Lấy token từ cookie
+      const token = localStorage.getItem('token'); 
+      console.log('Token from cookies:', token); // Lấy token từ cookie
       const role = Cookies.get('role'); // Lấy role từ cookie
-  
+      
       if (token && role) {
         setUser({ token });
         setIsAdmin(role === 'admin');
         setIsLoggedIn(true);  // Đánh dấu người dùng đã đăng nhập
          setIsLoginVisible(false); 
+      
+      
       }
     }, []);
-   
+    const { username, setUsername, password, setPassword, handleLogin } = Login({
+      setIsLoggedIn,
+      setIsAdmin,
+      setError,
+      closeLogin: () => setIsLoginVisible(false),
+    });
+    const ProductPage = () => {
+      const [isAddProductVisible, setIsAddProductVisible] = useState(false);
+      const [user, setUser] = useState(null);  // Lấy user sau khi login
+      const [products, setProducts] = useState([]);}
     const deleteProduct = async (id) => {
       if (!isAdmin) {
         alert('Only admin can delete products.');
@@ -52,36 +65,32 @@ function App() {
         alert('Failed to delete product');
       }
     };
-
+    
+  
+  const handleAddProductClick = () => {
+      setIsAddProductVisible(!isAddProductVisible);
+    };
   const handleLoginClick = () => {
-    setIsLoginVisible(true); // Hiển thị form đăng nhập khi người dùng click
+    setIsLoginVisible(true); 
   };
   const closeLogin = () => {
-    setIsLoginVisible(false); // Đóng form đăng nhập
+    setIsLoginVisible(false); 
   };
   const [products, setProducts] = useState({});
   
  const fetchProducts = async (category) => {
       try {
         const response = await axios.get(`http://localhost:5001/data/${category}`);
-        setProducts((prev) => ({
+        if (Array.isArray(response.data)) {setProducts((prev) => ({
           ...prev,
           [category]: response.data, // Store products dynamically by category
-        }));
-      } catch (error) {
+        }));}else {
+          console.error('Products for category not returned as an array:', response.data);
+      } } catch (error) {
         console.error('Error fetching products:', error);
       }
     };
-    // Updated openOverlay function
- /*const fetchProductDetails = async (id) => {
-      try {
-        const response = await axios.get(`http://localhost:5000/product/${id}`);
-        setSelectedProduct(response.data);
-      } catch (error) {
-        console.error('Error fetching product details:', error);
-      }
-    };
-   */ 
+
 const openOverlay = (category, product = null) => {
   setActiveCategory(category);
   if (product) {
@@ -118,16 +127,12 @@ const openOverlay = (category, product = null) => {
   const closeOrder = () => {
     setIsOrderVisible(!isCartVisible);
   }
- /* const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewProduct({ ...newProduct, [name]: value });
-  };*/
-
+ 
  
    return (
     <>
     <div className="App">
-       <Login />
+       
      </div><div className="container">
          <header className="header">
            <a href='#home'>
@@ -143,17 +148,20 @@ const openOverlay = (category, product = null) => {
                <li><a href="#contact">CONTACT</a></li>
                
                <li><button onClick={handleLoginClick} className="login-btn">LOGIN</button></li>
+              
              </ul>
            </nav>
 
          </header>
         
          {isLoginVisible && (
-        <div className="login-overlay">
-          <Login closeLogin={closeLogin} />
-        </div>)}
-       
-      
+        <Login
+          setIsLoggedIn={setIsLoggedIn}
+          setIsAdmin={setIsAdmin}
+          setError={setError}
+          closeLogin={closeLogin}
+        />
+      )}
 
 
          <main className="main">
@@ -161,7 +169,7 @@ const openOverlay = (category, product = null) => {
              <img src="/images/homeshop6.jpg" alt="Shirt1" />
              <img src="/images/homeshop5.webp" alt="Shirt1" />
 
-             {loginMessage && <div className="login-message">{loginMessage}</div>}
+          
            </section>
            <section id="shirts" className="Shirthome">
              <h3>Shirts Collection</h3>
@@ -184,8 +192,31 @@ const openOverlay = (category, product = null) => {
              <h3> Your comment</h3>
              <input type="text" name="Your comment" placeholder="Enter your comment" id="y-cmt"></input>
            </section> 
+           <div>
+    
 
-           {isAdmin && <AddProduct user={user} fetchProducts={fetchProducts} />}
+    
+      <button onClick={handleAddProductClick}>
+        {isAddProductVisible ? 'Close Add Product Form' : 'Add Product'}
+      </button>
+
+      
+      {isAddProductVisible && (
+        <AddProduct
+          user={user}
+          fetchProducts={fetchProducts}
+        />
+      )}
+    </div>
+         
+{isAdmin && user && (
+  <AddProduct
+    user={user}
+    fetchProducts={fetchProducts}
+    closeAddProductForm={() => setIsOverlayVisible(false)}
+  />
+)}
+
            
            {isOrderVisible && (
              <div id="oder" className="order">
@@ -212,6 +243,9 @@ const openOverlay = (category, product = null) => {
 
                  </div>
                  <button className="close-overlay" onClick={closeOverlay}>Close</button>
+                 {isAdmin && (
+                <button className="add-product-btn" onClick={() => setIsOverlayVisible(false)}>Add Product</button>
+              )}
                </div>
              </div>
            )}

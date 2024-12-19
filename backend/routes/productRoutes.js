@@ -5,7 +5,7 @@ const Product = require('../models/Product');
 const router = express.Router();
 
 // Route để thêm sản phẩm mới
-router.post('/add', async (req, res) => {
+router.post('/products', async (req, res) => {
   try {
     const { name, price, img, category } = req.body;
     if (!name || !price || !img || !category) {
@@ -26,7 +26,7 @@ router.post('/add', async (req, res) => {
 });
 router.get('/', async (req, res) => {
   try {
-    const products = await Product.findAll(); // Fetch all products from the database
+    const products = await Product.findAll(); 
     res.status(200).json(products);
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -34,11 +34,11 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Route to fetch products by category
+
 router.get('/category/:category', async (req, res) => {
   try {
     const { category } = req.params;
-    const products = await Product.findAll({ where: { category } }); // Fetch products by category
+    const products = await Product.findAll({ where: { category } }); 
 
     if (products.length === 0) {
       return res.status(404).json({ message: `No products found in category: ${category}` });
@@ -51,7 +51,7 @@ router.get('/category/:category', async (req, res) => {
   }
 });
 
-// Route to delete a product (only for admin users)
+
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -62,7 +62,7 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    await product.destroy(); // Delete the product
+    await product.destroy(); 
     res.status(200).json({ message: 'Product deleted successfully' });
   } catch (error) {
     console.error('Error deleting product:', error);

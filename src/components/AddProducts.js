@@ -1,103 +1,131 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import Cookies from 'js-cookie';
 
 const AddProduct = ({ user, fetchProducts }) => {
-  const [newProduct, setNewProduct] = useState({
-    name: '',
-    price: '',
-    img: '',
-    category: '',
-  });
-  const [errors, setErrors] = useState({});
+  const [productName, setProductName] = useState('');
+  const [productCategory, setProductCategory] = useState('');
+  const [productDescription, setProductDescription] = useState('');
+  const [productPrice, setProductPrice] = useState('');
+  const [productImage, setProductImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const validateFields = () => {
-    const tempErrors = {};
-    if (!newProduct.name) tempErrors.name = 'Product name is required.';
-    if (!newProduct.price || isNaN(newProduct.price)) tempErrors.price = 'Valid price is required.';
-    if (!newProduct.img) tempErrors.img = 'Image URL is required.';
-    if (!newProduct.category) tempErrors.category = 'Category is required.';
-    return tempErrors;
-  };
+  // Hàm xử lý khi submit form để thêm sản phẩm
+  const handleSubmit = async (e) => { 
+    console.log('User token:', user?.token);  // Kiểm tra token của user
 
-  const handleAddProduct = async () => {
-    if (!user) {
-      alert('You need to log in to add products.');
+    e.preventDefault();
+
+    // Kiểm tra nếu không có user hoặc user.token
+    if (!user || !user.token) {
+      setError('You must be logged in to add a product.');
       return;
     }
 
-    const validationErrors = validateFields();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
+    // Kiểm tra nếu có trường nào bị bỏ trống
+    if (!productName || !productCategory || !productPrice || !productImage) {
+      setError('Please fill all fields');
       return;
     }
+
+    const formData = new FormData();
+    formData.append('name', productName);
+    formData.append('category', productCategory);
+    formData.append('description', productDescription);
+    formData.append('price', productPrice);
+    formData.append('image', productImage);
 
     try {
-      await axios.post(
-        'http://localhost:5001/add',
-        { ...newProduct },
-        { headers: { Authorization: `Bearer ${user.token}` } }
-      );
-      alert('Product added successfully');
-      fetchProducts(newProduct.category); // Refresh the product list
-      setNewProduct({ name: '', price: '', img: '', category: '' }); // Reset form
-      setErrors({});
-    } catch (error) {
-      console.error('Error adding product:', error);
-      alert('Failed to add product');
-    }
-  };
+      setLoading(true);
+      setError(''); // Clear previous error
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewProduct({ ...newProduct, [name]: value });
-    setErrors({ ...errors, [name]: '' }); // Clear error for the field
+      const response = await axios.post('http://localhost:5001/products', formData, {
+        headers: {
+          'Authorization': `Bearer ${user.token}`, // Sử dụng token từ user
+          'Content-Type': 'multipart/form-data',
+        }
+      });
+
+
+      if (response.status === 200) {
+        alert('Product added successfully');
+        fetchProducts(productCategory); // Tải lại danh sách sản phẩm sau khi thêm
+      } else {
+        setError('Error adding product');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Error adding product');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="add-product">
+    <div className="add-product-container">
       <h3>Add New Product</h3>
-      <div>
-        <input
-          type="text"
-          name="name"
-          placeholder="Product Name"
-          value={newProduct.name}
-          onChange={handleInputChange}
-        />
-        {errors.name && <p className="error">{errors.name}</p>}
-      </div>
-      <div>
-        <input
-          type="text"
-          name="price"
-          placeholder="Price"
-          value={newProduct.price}
-          onChange={handleInputChange}
-        />
-        {errors.price && <p className="error">{errors.price}</p>}
-      </div>
-      <div>
-        <input
-          type="text"
-          name="img"
-          placeholder="Image URL"
-          value={newProduct.img}
-          onChange={handleInputChange}
-        />
-        {errors.img && <p className="error">{errors.img}</p>}
-      </div>
-      <div>
-        <input
-          type="text"
-          name="category"
-          placeholder="Category"
-          value={newProduct.category}
-          onChange={handleInputChange}
-        />
-        {errors.category && <p className="error">{errors.category}</p>}
-      </div>
-      <button onClick={handleAddProduct}>Add Product</button>
-    </div>
+     
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label htmlFor="product-name">Product Name</label>
+          <input
+            id="product-name"
+            type="text"
+            value={productName}
+            onChange={(e) => setProductName(e.target.value)}
+            required
+          />
+        </div>
+        
+        <div>
+          <label htmlFor="product-category">Category</label>
+          <input
+            id="product-category"
+            type="text"
+            value={productCategory}
+            onChange={(e) => setProductCategory(e.target.value)}
+            required
+          />
+        </div>
+
+        <div>
+          <label htmlFor="product-description">Description</label>
+          <textarea
+            id="product-description"
+            value={productDescription}
+            onChange={(e) => setProductDescription(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="product-price">Price</label>
+          <input
+            id="product-price"
+            type="number"
+            value={productPrice}
+            onChange={(e) => setProductPrice(e.target.value)}
+            required
+          />
+        </div>
+
+        <div>
+          <label htmlFor="product-image">Product Image</label>
+          <input
+            id="product-image"
+            type="file"
+            onChange={(e) => setProductImage(e.target.files[0])}
+            required
+          />
+        </div>
+
+        {error && <p className="error">{error}</p>}
+
+        <button type="submit" disabled={loading}>
+          {loading ? 'Adding Product...' : 'Add Product'}
+        </button>
+      </form>
+   </div>
   );
 };
 
