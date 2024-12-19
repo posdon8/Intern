@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt'); // Dùng để mã hóa mật khẩu
 const User = require('../models/User'); // Import model User đã định nghĩa
 const router = express.Router();
-const { queryAsync } = require('../utils');
+
 
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
