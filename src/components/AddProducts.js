@@ -42,7 +42,7 @@ const AddProduct = ({ user, fetchProducts }) => {
 
       const response = await axios.post('http://localhost:5001/products', formData, {
         headers: {
-          'Authorization': `Bearer ${user.token}`, // Sử dụng token từ user
+          'Authorization': `Bearer ${user.token}`, 
           'Content-Type': 'multipart/form-data',
         }
       });
@@ -50,7 +50,7 @@ const AddProduct = ({ user, fetchProducts }) => {
 
       if (response.status === 200) {
         alert('Product added successfully');
-        fetchProducts(productCategory); // Tải lại danh sách sản phẩm sau khi thêm
+        fetchProducts(productCategory); // 
       } else {
         setError('Error adding product');
       }

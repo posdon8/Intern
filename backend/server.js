@@ -13,8 +13,8 @@ const productRoutes = require('./routes/productRoutes');
 const multer = require('multer');
 const upload = multer({ dest: 'uploads/' });
 const corsOptions = {
-  origin: 'http://localhost:3000',  // Allow only this origin
-  credentials: true,  // Allow credentials (cookies, headers, etc.)
+  origin: 'http://localhost:3000',  
+  credentials: true,  
 };
 
 
@@ -40,7 +40,6 @@ sequelize.sync()
     console.error('Không thể kết nối cơ sở dữ liệu:', error);
   });
   app.use(cors(corsOptions));
-// MySQL connectioan
 const connection = mysql.createConnection({
   host: '127.0.0.1',
   user: 'root',
@@ -59,7 +58,6 @@ connection.connect(err => {
   console.log('Kết nối thành công tới MySQL!');
 });
 
-// Middleware
 
 app.use(bodyParser.json());
 async function generateHashedPassword() {
@@ -78,7 +76,7 @@ const queryAsync = (query, params) => {
   });
 };
 
-// Login route
+
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -90,7 +88,7 @@ app.post('/login', async (req, res) => {
     }
       
     const user = results[0];
-    const passwordMatch = await bcrypt.compare(password, user.password); // So sánh mật khẩu
+    const passwordMatch = await bcrypt.compare(password, user.password); 
     if (!passwordMatch) {
       return res.status(401).json({ message: 'Sai mật khẩu' });
     }

@@ -486,3 +486,11 @@ button:disabled {
   color: red;
   font-size: 12px;
 }
+.order input{
+  max-height: 200px;
+  width: 95%;
+  
+}
+.order {
+  height: 700px;
+}

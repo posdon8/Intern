@@ -17,9 +17,9 @@ function App() {
   const[isOrderVisible, setIsOrderVisible] = useState(false);
   const [user, setUser] = useState(null);
   const [error, setError] = useState('');
- 
+  const [orderSuccess, setOrderSuccess] = useState(false);
   const [isAddProductVisible, setIsAddProductVisible] = useState(false);
-
+  const [products, setProducts] = useState({});
   const [shippingFee, setShippingFee] = useState(50000);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -76,8 +76,47 @@ function App() {
   const closeLogin = () => {
     setIsLoginVisible(false); 
   };
-  const [products, setProducts] = useState({});
+  const [orderForm, setOrderForm] = useState({
+    name: '',
+    phone: '',
+    address: '',
+    note: '',
+  });
+  const [formError, setFormError] = useState('');
+  const handleConfirmOrder = () => {
+      const { name, phone, address } = orderForm;
+    
+      // Kiểm tra nếu các trường bắt buộc còn trống
+      if (!name || !phone || !address) {
+        setFormError('Vui lòng điền đầy đủ thông tin bắt buộc!');
+        return;
+      }
+    
+      // Xóa lỗi nếu mọi thứ hợp lệ
+      setFormError('');
+      alert('Đặt hàng thành công!');
+    
+      // Reset form
+      setOrderForm({
+        name: '',
+        phone: '',
+        address: '',
+        note: '',
+      });
+    
+      // Đóng form đặt hàng
+      setIsOrderVisible(false);
+    };
+    const handleInputChange = (e) => {
+      const { name, value } = e.target;
+      setOrderForm((prevForm) => ({
+        ...prevForm,
+        [name]: value,
+      }));
+    };
+    
   
+ 
  const fetchProducts = async (category) => {
       try {
         const response = await axios.get(`http://localhost:5001/data/${category}`);
@@ -94,7 +133,7 @@ function App() {
 const openOverlay = (category, product = null) => {
   setActiveCategory(category);
   if (product) {
-    setSelectedProduct(product); // Set the selected product for detailed view
+    setSelectedProduct(product); 
   } else {
     fetchProducts(category);
     setSelectedProduct(null);
@@ -218,20 +257,52 @@ const openOverlay = (category, product = null) => {
 )}
 
            
-           {isOrderVisible && (
-             <div id="oder" className="order">
-               <button id="close-order" className="close-order" onClick={closeOrder}>X</button>
-               <h3> Name</h3>
-               <input type="text" name="NamePlace" placeholder="Enter your name" id="p-name"></input>
-               <h3> PhoneCall</h3>
-               <input type="text" name="PhonePlace" placeholder="Enter your phonecall" id="p-phone"></input>
-               <h3> Address</h3>
-               <input type="text" name="AddressPlace" placeholder="Enter your address" id="p-address"></input>
-               <h3> Note</h3>
-               <input type="text" name="NotePlace" placeholder="Enter your note" id="p-note"></input>
+{isOrderVisible && (
+  <div id="order" className="order">
+    <button id="close-order" className="close-order" onClick={closeOrder}>
+      X
+    </button>
+    <h3>Name *</h3>
+    <input
+      type="text"
+      name="name"
+      placeholder="Enter your name"
+      value={orderForm.name}
+      onChange={handleInputChange}
+    />
+    <h3>Phone *</h3>
+    <input
+      type="text"
+      name="phone"
+      placeholder="Enter your phonecall"
+      value={orderForm.phone}
+      onChange={handleInputChange}
+    />
+    <h3>Address *</h3>
+    <input
+      type="text"
+      name="address"
+      placeholder="Enter your address"
+      value={orderForm.address}
+      onChange={handleInputChange}
+    />
+    <h3>Note</h3>
+    <input
+      type="text"
+      name="note"
+      placeholder="Enter your note"
+      value={orderForm.note}
+      onChange={handleInputChange}
+    />
 
-               <button id="confirm-btn" className="confirm-btn"> CONFIRM </button>
-             </div>)}
+    {/* Hiển thị lỗi nếu có */}
+    {formError && <p className="error">{formError}</p>}
+
+    <button id="confirm-btn" className="confirm-btn" onClick={handleConfirmOrder}>
+      CONFIRM
+    </button>
+  </div>
+)}
            {isOverlayVisible && selectedProduct && (
              <div className="overlay">
                <div className="overlay-content ">
