@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const Login = () => {
+const Login = ({closeLogin}) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -25,7 +25,7 @@ const Login = () => {
         console.log('Login successful:', response.data);
         // Ví dụ lưu token vào localStorage
         localStorage.setItem('token', response.data.token);
-
+        closeLogin();
         // Điều hướng người dùng đến trang khác (ví dụ: dashboard)
         // window.location.href = '/dashboard'; // hoặc sử dụng react-router
       }
@@ -40,6 +40,7 @@ const Login = () => {
 
   return (
     <div className="login-container">
+      <div className="login-item">
       <h2>Đăng nhập</h2>
       <form onSubmit={handleLogin}>
         <div>
@@ -67,6 +68,7 @@ const Login = () => {
           </button>
         </div>
       </form>
+      <button onClick={closeLogin}>Đóng</button></div>
     </div>
   );
 };

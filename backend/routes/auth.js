@@ -2,37 +2,47 @@ const express = require('express');
 const bcrypt = require('bcrypt'); // Dùng để mã hóa mật khẩu
 const User = require('../models/User'); // Import model User đã định nghĩa
 const router = express.Router();
+const { queryAsync } = require('../utils');
 
-// Route đăng ký tài khoản
-router.post('/register', async (req, res) => {
+router.post('/login', async (req, res) => {
+  const { username, password } = req.body;
   try {
-    const { username, password } = req.body;
+    const results = await queryAsync('SELECT * FROM Users WHERE username = ?', [username]);
 
-    // Kiểm tra xem username hoặc password có bị thiếu không
-    if (!username || !password) {
-      return res.status(400).json({ message: 'Vui lòng nhập đầy đủ username và password!' });
+    if (results.length === 0) {
+      return res.status(401).send('Sai tên đăng nhập');
     }
 
-    // Kiểm tra xem username đã tồn tại chưa
-    const existingUser = await User.findOne({ where: { username } });
-    if (existingUser) {
-      return res.status(400).json({ message: 'Tên tài khoản đã tồn tại!' });
+    const user = results[0];
+    const match = await bcrypt.compare(password, user.password);  // So sánh mật khẩu băm
+
+    if (!match) {
+      return res.status(401).send('Sai mật khẩu');
     }
 
-    // Mã hóa mật khẩu
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const token = jwt.sign(
+      { id: user.id, username: user.username, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
 
-    // Tạo user mới
-    const newUser = await User.create({
-      username,
-      password: hashedPassword,
-    });
-
-    res.status(201).json({ message: 'Đăng ký thành công!', user: newUser });
-  } catch (error) {
-    console.error('Lỗi khi đăng ký tài khoản:', error);
-    res.status(500).json({ message: 'Đã xảy ra lỗi, vui lòng thử lại sau!' });
+    res.cookie('token', token, { httpOnly: true, secure: false });
+    res.status(200).send({ success: true, message: 'Login successful', token });
+  } catch (err) {
+    console.error('Lỗi khi đăng nhập:', err.message);
+    return res.status(500).send('Lỗi server');
   }
 });
+
+// Đăng xuất
+router.post('/logout', (req, res) => {
+  req.session.destroy(err => {
+    if (err) {
+      return res.status(500).send('Lỗi khi đăng xuất');
+    }
+    res.status(200).send('Đăng xuất thành công');
+  });
+});
+
 
 module.exports = router;

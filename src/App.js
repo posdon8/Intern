@@ -3,7 +3,7 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 import React, { useState, useEffect } from 'react';
 import Login from './components/Login';
-
+import AddProduct from './components/AddProducts';
 import './App.css';
 
 
@@ -16,12 +16,14 @@ function App() {
   const [isCartVisible, setIsCartVisible] = useState(false);
   const[isOrderVisible, setIsOrderVisible] = useState(false);
   const [user, setUser] = useState(null);
-  const [isLoginVisible, setIsLoginVisible] = useState(false);
+
+  const [loginMessage, setLoginMessage] = useState('');
+
+  const [shippingFee, setShippingFee] = useState(50000);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-  const toggleLogin = () => {
-    setIsLoginVisible(!isLoginVisible);
-  };
+  const [isLoginVisible, setIsLoginVisible] = useState(false);
     useEffect(() => {
       // Kiểm tra cookie khi component được mount
       const token = Cookies.get('token'); // Lấy token từ cookie
@@ -30,55 +32,33 @@ function App() {
       if (token && role) {
         setUser({ token });
         setIsAdmin(role === 'admin');
+        setIsLoggedIn(true);  // Đánh dấu người dùng đã đăng nhập
+         setIsLoginVisible(false); 
       }
     }, []);
-    const handleInputChange = (e) => {
-      const { name, value } =e.target;
-      setLoginForm({ ...loginForm, [name]: value });
-    };
-    const handleLogin = async () => {
+   
+    const deleteProduct = async (id) => {
+      if (!isAdmin) {
+        alert('Only admin can delete products.');
+        return;
+      }
       try {
-        const response = await axios.post('http://localhost:5001/login', {
-          username: loginForm.username,
-          password: loginForm.password
+        await axios.delete(`http://localhost:5001/products/${id}`, {
+          headers: { Authorization: `Bearer ${user.token}` },
         });
-        console.log('Login successful', response.data);
-        Cookies.set('token', response.data.token); // Set token to cookie
-      Cookies.set('role', response.data.role); // Set role to cookie
-      setUser({ token: response.data.token });
-      setIsAdmin(response.data.role === 'admin');
-      setIsLoginVisible(false); 
+        alert('Product deleted successfully');
       } catch (error) {
-        if (error.response) {
-          // Lỗi trả về từ server
-          console.error('Login failed:', error.response.data); // Hiển thị thông báo lỗi chi tiết từ server
-        } else if (error.request) {
-          // Lỗi do không nhận được phản hồi từ server
-          console.error('No response from server:', error.request);
-        } else {
-          // Lỗi trong quá trình gửi yêu cầu
-          console.error('Error setting up request:', error.message);
-        }
+        console.error('Error deleting product:', error);
+        alert('Failed to delete product');
       }
     };
-    
-/*
-  const deleteProduct = async (id) => {
-    try {
-      await axios.delete(`http://localhost:5000/admin/products/${id}`, {
-        headers: { Authorization: user.token },
-      });
-      alert('Xóa sản phẩm thành công');
-      fetchProducts(activeCategory); // Refresh danh sách sản phẩm
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      alert('Xóa sản phẩm thất bại');
-    }
+
+  const handleLoginClick = () => {
+    setIsLoginVisible(true); // Hiển thị form đăng nhập khi người dùng click
   };
-  const handleDelete = (id) => {
-    deleteProduct(id); // Call deleteProduct to remove the product
-  };*/
- 
+  const closeLogin = () => {
+    setIsLoginVisible(false); // Đóng form đăng nhập
+  };
   const [products, setProducts] = useState({});
   
  const fetchProducts = async (category) => {
@@ -127,6 +107,11 @@ const openOverlay = (category, product = null) => {
     const updatedCart = cart.filter((_, i) => i !== index);
     setCart(updatedCart);
   };
+  const calculateTotalAmount = () => {
+    const productTotal = cart.reduce((total, product) => total + parseFloat(product.price), 0);
+    const effectiveShippingFee = cart.length === 0 ? 0 : shippingFee;
+    return productTotal + effectiveShippingFee;
+  };
   const openOrder = () => {
     setIsOrderVisible(true);
   }
@@ -138,38 +123,16 @@ const openOverlay = (category, product = null) => {
     setNewProduct({ ...newProduct, [name]: value });
   };*/
 
-  const addProduct = async () => {
-    if (!isAdmin) {
-      alert('Only admin can add products.');
-      return;
-    }
-    const { name, price, img, category } = newProduct;
-    if (name && price && img && category) {
-      try {
-        await axios.post(
-          'http://localhost:5000/admin/products',
-          { name, price, img, category },
-          { headers: { Authorization: `Bearer ${user.token}` } }
-        );
-        alert('Product added successfully');
-        setNewProduct({ name: '', price: '', img: '', category: '' });
-        fetchProducts(category);
-      } catch (error) {
-        console.error('Error adding product:', error);
-        alert('Failed to add product');
-      }
-    } else {
-      alert('Please fill in all fields.');
-    }
-  }
+ 
    return (
-    <><div className="App">
+    <>
+    <div className="App">
        <Login />
      </div><div className="container">
          <header className="header">
            <a href='#home'>
              <img src='/images/POSEI.png' alt='POSEI' onClick={closeOverlay}></img></a>
-           <input type="text" name="search-prod" placeholder="Search your outfit"></input>
+           
            <nav className="navbar">
              <ul>
 
@@ -178,32 +141,19 @@ const openOverlay = (category, product = null) => {
                <li><a href="#accessories">ACCESORIES</a></li>
                <li><a href="#cart" onClick={toggleCart}>CART</a></li>
                <li><a href="#contact">CONTACT</a></li>
-               <li><button onClick={toggleLogin} className="login-btn">LOGIN</button></li>
+               
+               <li><button onClick={handleLoginClick} className="login-btn">LOGIN</button></li>
              </ul>
            </nav>
 
          </header>
+        
          {isLoginVisible && (
-           <div className="login-overlay">
-             <div className="login-content">
-               <h2>Login</h2>
-               <input
-                 type="text"
-                 name="username"
-                 placeholder="Username"
-                 value={loginForm.username}
-                 onChange={handleInputChange} />
-               <input
-                 type="password"
-                 name="password"
-                 placeholder="Password"
-                 value={loginForm.password}
-                 onChange={handleInputChange} />
-               <button onClick={handleLogin}>Login</button>
-               <button onClick={toggleLogin}>Cancel</button>
-             </div>
-           </div>
-         )}
+        <div className="login-overlay">
+          <Login closeLogin={closeLogin} />
+        </div>)}
+       
+      
 
 
          <main className="main">
@@ -211,7 +161,7 @@ const openOverlay = (category, product = null) => {
              <img src="/images/homeshop6.jpg" alt="Shirt1" />
              <img src="/images/homeshop5.webp" alt="Shirt1" />
 
-
+             {loginMessage && <div className="login-message">{loginMessage}</div>}
            </section>
            <section id="shirts" className="Shirthome">
              <h3>Shirts Collection</h3>
@@ -233,7 +183,10 @@ const openOverlay = (category, product = null) => {
              <input type="text" name="Your email" placeholder="Enter your email" id="y-email"></input>
              <h3> Your comment</h3>
              <input type="text" name="Your comment" placeholder="Enter your comment" id="y-cmt"></input>
-           </section>
+           </section> 
+
+           {isAdmin && <AddProduct user={user} fetchProducts={fetchProducts} />}
+           
            {isOrderVisible && (
              <div id="oder" className="order">
                <button id="close-order" className="close-order" onClick={closeOrder}>X</button>
@@ -295,33 +248,36 @@ const openOverlay = (category, product = null) => {
              <div className="cart-overlay">
                <div className="cart-content">
                  <h3>CART</h3>
-                 {cart.length > 0 ? (
+    
                    <div className="cart-items">
                      {cart.map((product, index) => (
                        <div className="cart-item" key={index}>
                          <img src={product.img} alt={product.name} />
                          <h4>{product.name}</h4>
                          <p>Price: {product.price}</p>
+                         
                          <button onClick={() => removeFromCart(index)}>Remove</button>
                        </div>
                      ))}
                    </div>
-                 ) : (
-                   <p>Your cart is empty!</p>
-                 )}
-                 <button onClick={openOrder}>ORDER</button>
+                   <div className="cart-total">
+                    <h4> Shipping Fee : {cart.length === 0 ? 0 : shippingFee} VND </h4>
+                     <h4>Total: {calculateTotalAmount()} VND</h4>
+                   </div>
+                   <button onClick={openOrder}>ORDER</button>
                </div>
              </div>
            )}
+   
 
-
-
+ 
          </main>
 
          <footer className="footer">
            <p>&copy; 2024 POSEI. All rights reserved.</p>
          </footer>
-       </div></>
+       </div>
+       </>
   );
 }
 

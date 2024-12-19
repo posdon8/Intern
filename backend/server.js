@@ -9,6 +9,7 @@ const session = require('express-session');
 const sequelize = require('./config/database');
 const { authenticateJWT } = require('./middleware');
 const registerRoute = require('./routes/auth'); 
+const productRoutes = require('./routes/productRoutes');
 const corsOptions = {
   origin: 'http://localhost:3000',  // Allow only this origin
   credentials: true,  // Allow credentials (cookies, headers, etc.)
@@ -17,13 +18,14 @@ const corsOptions = {
 const app = express();
 const port = process.env.PORT || 5001;
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'your_session_secret', // Sử dụng một secret cho session
+  secret: process.env.SESSION_SECRET || 'tamvu100523', // Sử dụng một secret cho session
   resave: false,
   saveUninitialized: true,
   cookie: { secure: false, httpOnly: true } // Thiết lập secure=true khi triển khai trên HTTPS
 }));
 app.use(express.json());
 app.use('/api', registerRoute);
+app.use('/api/products', productRoutes); 
 sequelize.sync()
   .then(() => {
     console.log('Kết nối cơ sở dữ liệu thành công!');
@@ -90,8 +92,8 @@ app.post('/login', async (req, res) => {
     }
 
     const user = results[0];
-    const match = await bcrypt.compare(password, user.password);
-
+    const match = password === user.password;
+    
     if (!match) {
       return res.status(401).send('Sai mật khẩu');
     }
@@ -99,7 +101,7 @@ app.post('/login', async (req, res) => {
     // Tạo token JWT
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
-      process.env.JWT_SECRET,
+      "process.env.JWT_SECRET",
       { expiresIn: '1h' }
     );
     res.cookie('token', token, { httpOnly: true, secure: true });
@@ -119,11 +121,29 @@ app.post('/logout', (req, res) => {
     res.status(200).send('Đăng xuất thành công');
   });
 });
-
-// API chỉ dành cho người đã đăng nhập
-app.get('/protected', isAuthenticated, (req, res) => {
-  res.status(200).send(`Chào mừng ${req.session.user.username}, bạn đã đăng nhập`);
+app.post('/add', (req, res) => {
+  // Xử lý thêm sản phẩm vào cơ sở dữ liệu
+  const { name, price, img, category } = req.body;
+  
+  // Kiểm tra dữ liệu và thêm vào cơ sở dữ liệu
+  if (!name || !price || !category) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+  const query = 'INSERT INTO Products (name, price, img, category) VALUES (?, ?, ?, ?)';
+  try {
+    connection.query(query, [name, price, img, category], (err, results) => {
+      if (err) {
+        console.error('Error inserting product:', err.message);
+        return res.status(500).send('Failed to add product');
+      }
+      res.status(200).json({ message: 'Product added successfully', productId: results.insertId });
+    });
+  } catch (err) {
+    console.error('Error adding product:', err.message);
+    return res.status(500).send('Failed to add product');
+  }
 });
+
 
 // Lấy danh sách sản phẩm
 app.get('/data', (req, res) => {
@@ -188,6 +208,21 @@ app.get('/product/:id', (req, res) => {
 });
 
 
+app.delete('/delete-product/:id', async (req, res) => {
+  const productId = req.params.id;
+  
+  const query = 'DELETE FROM Products WHERE id = ?';
+  try {
+    const result = await queryAsync(query, [productId]);
+    if (result.affectedRows === 0) {
+      return res.status(404).send('Product not found');
+    }
+    res.status(200).send({ success: true, message: 'Product deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting product:', err.message);
+    res.status(500).send({ error: 'Failed to delete product' });
+  }
+});
 // Close MySQL connection gracefully
 process.on('SIGINT', () => {
   connection.end(err => {
